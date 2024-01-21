@@ -6,8 +6,8 @@
  */
 
 
-(function(APP, $, undefined) {
-    
+(function (APP, $, undefined) {
+
     // App configuration
     APP.config = {};
     APP.config.app_id = 'SIGNALACQUISITION';
@@ -22,10 +22,10 @@
 
 
     // Starts template application on server
-    APP.startApp = function() {
+    APP.startApp = function () {
 
         $.get(APP.config.app_url)
-            .done(function(dresult) {
+            .done(function (dresult) {
                 if (dresult.status == 'OK') {
                     APP.connectWebSocket();
                 } else if (dresult.status == 'ERROR') {
@@ -36,7 +36,7 @@
                     APP.startApp();
                 }
             })
-            .fail(function() {
+            .fail(function () {
                 console.log('Could not start the application (ERR3)');
                 APP.startApp();
             });
@@ -45,7 +45,7 @@
 
 
 
-    APP.connectWebSocket = function() {
+    APP.connectWebSocket = function () {
 
         //Create WebSocket
         if (window.WebSocket) {
@@ -62,23 +62,41 @@
         // Define WebSocket event listeners
         if (APP.ws) {
 
-            APP.ws.onopen = function() {
+            APP.ws.onopen = function () {
                 $('#hello_message').text("Hello, Red Pitaya!");
-                console.log('Socket opened');               
+                console.log('Socket opened');
             };
 
 
-            APP.ws.onclose = function() {
+            APP.ws.onclose = function () {
                 console.log('Socket closed');
             };
 
-            APP.ws.onerror = function(ev) {
+            APP.ws.onerror = function (ev) {
                 $('#hello_message').text("Connection error");
-                console.log('Websocket error: ', ev);         
+                console.log('Websocket error: ', ev);
             };
 
-            APP.ws.onmessage = function(ev) {
+            APP.ws.onmessage = function (ev) {
                 console.log('Message recieved');
+                //Capture signals
+                if (APP.processing) {
+                    return;
+                }
+                APP.processing = true;
+
+                try {
+                    if (receive.parameters) {
+                        APP.parameterStack.push(receive.parameters);
+
+                    }
+                    APP.processing = false;
+                } catch (e) {
+                    APP.processing = false;
+                    console.log(e);
+                } finally {
+                    APP.processing = false;
+                }
             };
         }
     };
@@ -90,20 +108,23 @@
 // Page onload event handler
 $(function () {
     // Start application
+    $('#start_acq_value').text("START_ACQ VALUE: " + String(APP.START_ACQ));
 
 
     $('#StartAcquisition').click(function () {
-        if (APP.START_ACQ == true) {
-            APP.START_ACQ = false;
-        }
-        else {
+        if (APP.START_ACQ == false) {
             APP.START_ACQ = true;
+            $('#start_acq_value').text("START_ACQ VALUE: " + String(APP.START_ACQ));
+            var local = {};
+            local['START_ACQ'] = { value: APP.START_ACQ };
+            console.log("parameter sent: " + String(APP.START_ACQ));
+            APP.ws.send(JSON.stringify({ parameters: local }));
+            $('#hello_message').text("Acquisition Started! ");
+            $('#start_acq_value').text("START_ACQ VALUE: " + String(APP.START_ACQ));
+    
+            console.log("Acquisition started");
         }
-        var local = {};
-        local['START_ACQ'] = { value: APP.START_ACQ };
-        console.log("parameter sent: " + String(APP.START_ACQ));
-        APP.ws.send(JSON.stringify({ parameters: local }));
-        console.log("Acquisition started");
+
     });
 
 

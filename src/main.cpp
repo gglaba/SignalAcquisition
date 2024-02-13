@@ -19,14 +19,18 @@ void AcquireSignal(){
     uint32_t buff_size = 16384;
     float *buff = (float *)malloc(buff_size * sizeof(float));
     rp_AcqReset();
-        rp_AcqSetDecimation(RP_DEC_16);
-        rp_AcqSetTriggerLevel(RP_T_CH_2, 0.1);
-        rp_AcqSetTriggerDelay(0);
+        rp_AcqSetDecimation(RP_DEC_8);
+        //rp_AcqSetTriggerLevel(RP_T_CH_2, 1.0);
+        //rp_AcqSetTriggerDelay(50);
 
         rp_AcqStart();
 
-        sleep(1);
-        rp_AcqSetTriggerSrc(RP_TRIG_SRC_CHA_PE);
+        /* After acquisition is started some time delay is needed in order to acquire fresh samples in to buffer*/
+        /* Here we have used time delay of one second but you can calculate exact value taking in to account buffer*/
+        /*length and smaling rate*/
+
+        sleep(5);
+        rp_AcqSetTriggerSrc(RP_TRIG_SRC_NOW);
         rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
 
         while(1){
@@ -41,22 +45,20 @@ void AcquireSignal(){
 		rp_AcqGetBufferFillState(&fillState);
 	}
 
-        rp_AcqGetOldestDataV(RP_CH_2, &buff_size, buff);
-        int i;
-        for(i = 0; i < buff_size; i++){
-            if(buff[i] != -1 && buff[i] != 1){
-                data << buff[i] << "   ";
-            }
-        }
-        /* Releasing resources */
-        free(buff);
-        data.close();
-
+    rp_AcqGetOldestDataV(RP_CH_2, &buff_size, buff);
+    int i;
+    for (i = 0; i < buff_size; i++)
+    {
+        data << buff[i] << "   ";
+    }
+    /* Releasing resources */
+    free(buff);
+    data.close();
 }
 
 void debugLog(std::string message){
     std::fstream fs;
-    fs.open ("/tmp/debug.log", std::fstream::in | std::fstream::out | std::fstream::app);
+    fs.open ("/tmp/debug.log", std::fstream::in | std::fstream::out | std::fstream::trunc);
     fs << message << "\n";
     fs.close();
 }
@@ -135,10 +137,9 @@ void OnNewParams(void) {
  
     if (START_ACQ.Value() == true)
     {
-        START_ACQ.Set(false);
         AcquireSignal();
+        START_ACQ.Set(false);
     }   
-    fs.close();
 }
 
 

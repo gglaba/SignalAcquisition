@@ -5,24 +5,37 @@
 #include "rp.h"
 #include "rp_hw-profiles.h"
 
+#define FILENAME_SIZE 100
+#define FILEPATH_SIZE 200
 
-void sendFile(char *filename){
+void sendFile(char *filename)
+{
     char copy_file[200];
-    sprintf(copy_file, "scp %s grzesiula@192.168.122.42:/home/grzesiula", filename);
+    sprintf(copy_file, "scp %s grzesiula@192.168.122.42:/home/grzesiula/Desktop/Inżynierka/SignalAcquisition/Data", filename);
     int status = system(copy_file);
-    if(status ==0){
-        fprintf(stdout,"File sent succesfully");
-          char delete_command[100];
+    if (status == 0)
+    {
+        fprintf(stdout, "File sent succesfully");
+        char delete_command[100];
         sprintf(delete_command, "rm %s", filename);
 
-        // Execute the command to delete the local file
-        system(delete_command);
-        
+        int delete_status = system(delete_command);
+
+        if (delete_status == 0)
+        {
+            fprintf(stdout, "Local file deleted.\n");
+        }
+        else
+        {
+            fprintf(stdout, "Error while deleting the file.\n");
+        }
+
         printf("Local file deleted.\n");
-    } else {
+    }
+    else
+    {
         printf("Error occurred while sending the file.\n");
     }
-
 }
 
 void generateSignals()
@@ -45,34 +58,39 @@ void generateSignals()
     rp_GenSynchronise();
 }
 
-char getFileNameOrPath(int type){ //type == 1 for name type == 2 for path
+char *getFileNameOrPath(int type) { //type == 1 for name type == 2 for path
     time_t t = time(NULL);
-    char date_time = strftime(date_time, sizeof(date_time), "%Y%m%d_%H%M%S", localtime(&t));
-    char filename[100];
+    char date_time[FILENAME_SIZE]; 
+    strftime(date_time, sizeof(date_time), "%Y%m%d_%H%M%S", localtime(&t));
+    char *filename = malloc(FILENAME_SIZE * sizeof(char));
+    char *filepath = malloc(FILEPATH_SIZE * sizeof(char));
     sprintf(filename, "CH1_CH2_%s.csv", date_time);
-    char filepath[100];
     sprintf(filepath, "/tmp/%s", filename);
-    if(type == 1){
+    if (type == 1) {
         return filename;
-    } else if(type == 2){
+    } else if (type == 2) {
         return filepath;
     }
-    return 0;
-
+    return NULL;
 }
 
-
-int Acquisition(){
+int Acquisition()
+{
 
     FILE *fptr;
+    FILE *data;
     char *filepath = getFileNameOrPath(2);
-    fptr = fopen(filepath, "w+");
-    if(fptr == NULL){
-        fprintf(stdout, "NIE UTWORZONO PLIKU");
+    fptr = fopen("/tmp/DebugLog.txt", "w+");
+    if (filepath != NULL)
+    {
+        data = fopen(filepath, "w+");
+    }
+    if (fptr == NULL || data == NULL)
+    {
+        fprintf(stdout, "one of the files was not created!");
         exit(1);
     }
-
-
+    fprintf(data, "CH1V,CH2V\n");
 
     if (rp_Init() != RP_OK)
     {
@@ -121,43 +139,36 @@ int Acquisition(){
         rp_AcqGetBufferFillState(&fillState);
         fprintf(fptr, "\n Buffer not filled \n");
     }
-    //rp_AcqStop();
+    // rp_AcqStop();
     fprintf(fptr, "\n Buffer filled \n");
     uint32_t pos = 0;
 
     rp_AcqGetWritePointerAtTrig(&pos);
-
-    for(int loop = 0; loop < 10; loop++){
+    for (int loop = 0; loop < 10; loop++)
+    {
         rp_AcqGetWritePointerAtTrig(&pos);
-        fprintf(fptr,"\n%s %i","LOOP NUMBER",loop);
-        fprintf(fptr,"\n%s %i","WRITER POS ",&pos);
+
         rp_AcqGetDataV(RP_CH_1, &pos, &buff_size, buff1);
         rp_AcqGetDataV(RP_CH_2, &pos, &buff_size, buff2);
+
         fprintf(fptr, "\n Data acquired \n");
-        fprintf(fptr, "FROM BUFF1");
         for (int i = 0; i < buff_size; i++)
         {
-            fprintf(fptr, "%f\n", buff1[i]);
-        }
-        fprintf(fptr, "\nFROM BUFF2\n");
-        for (int i = 0; i < buff_size; i++)
-        {
-            fprintf(fptr, "%f\n", buff2[i]);
+            fprintf(data, "%f,%f\n", buff1[i], buff2[i]);
         }
     }
 
-
-
-    sendFile(filepath)
+    sendFile(filepath);
 
     free(buff1);
     free(buff2);
+    free(filepath);
     rp_Release();
-    fprintf(fptr, "\n Buffer freed \n");
+    fprintf(fptr, "\n Memory freed \n");
     fclose(fptr);
+    fclose(data);
     return 0;
 }
-
 
 int main(int argc, char **argv)
 {

@@ -7,6 +7,9 @@
 
 #define FILENAME_SIZE 100
 #define FILEPATH_SIZE 200
+#define FREQ 25000
+#define DECIM 8
+#define BUFFER_SIZE 16384
 
 void sendFile(char *filename)
 {
@@ -23,14 +26,12 @@ void sendFile(char *filename)
 
         if (delete_status == 0)
         {
-            fprintf(stdout, "Local file deleted.\n");
+            fprintf(stdout, "\nLocal file deleted.\n");
         }
         else
         {
             fprintf(stdout, "Error while deleting the file.\n");
         }
-
-        printf("Local file deleted.\n");
     }
     else
     {
@@ -47,11 +48,11 @@ void generateSignals()
     rp_GenSynchronise();
 
     rp_GenWaveform(RP_CH_1, RP_WAVEFORM_RAMP_UP);
-    rp_GenFreq(RP_CH_1, 2000);
+    rp_GenFreq(RP_CH_1, FREQ);
     rp_GenAmp(RP_CH_1, 1);
 
     rp_GenWaveform(RP_CH_2, RP_WAVEFORM_PWM);
-    rp_GenFreq(RP_CH_2, 2000);
+    rp_GenFreq(RP_CH_2, FREQ);
     rp_GenAmp(RP_CH_2, 1);
 
     rp_GenOutEnableSync(true);
@@ -61,7 +62,7 @@ void generateSignals()
 char *getFileNameOrPath(int type) { //type == 1 for name type == 2 for path
     time_t t = time(NULL);
     char date_time[FILENAME_SIZE]; 
-    strftime(date_time, sizeof(date_time), "%Y%m%d_%H%M%S", localtime(&t));
+    strftime(date_time, sizeof(date_time), "%Y_%m_%d_%H_%M_%S", localtime(&t));
     char *filename = malloc(FILENAME_SIZE * sizeof(char));
     char *filepath = malloc(FILEPATH_SIZE * sizeof(char));
     sprintf(filename, "CH1_CH2_%s.csv", date_time);
@@ -101,16 +102,16 @@ int Acquisition()
     generateSignals();
     fprintf(fptr, "Signals generated");
 
-    uint32_t buff_size = 16384;                                // buffer 16*1024
+    uint32_t buff_size = BUFFER_SIZE;                                // buffer 16*1024
     float *buff1 = (float *)malloc(buff_size * sizeof(float)); // allocate memory for buffer
     float *buff2 = (float *)malloc(buff_size * sizeof(float));
     fprintf(fptr, "Buffer allocated\n");
 
     rp_AcqReset(); // reset the acquisition
-    rp_AcqSetDecimation(RP_DEC_8);
+    rp_AcqSetDecimation(DECIM);
     fprintf(fptr, "Decimation set\n");
 
-    rp_AcqSetTriggerLevel(RP_CH_1, 0.1); // set trigger level to 1V
+    //rp_AcqSetTriggerLevel(RP_CH_1, 0.1); // set trigger level to 1V
     // rp_AcqSetTriggerLevel(RP_CH_2,0.5);
     fprintf(fptr, "Trigger level set\n");
 
@@ -144,9 +145,9 @@ int Acquisition()
     uint32_t pos = 0;
 
     rp_AcqGetWritePointerAtTrig(&pos);
-    for (int loop = 0; loop < 10; loop++)
+    for (int loop = 0; loop < 64; loop++)
     {
-        rp_AcqGetWritePointerAtTrig(&pos);
+        //rp_AcqGetWritePointerAtTrig(&pos);
 
         rp_AcqGetDataV(RP_CH_1, &pos, &buff_size, buff1);
         rp_AcqGetDataV(RP_CH_2, &pos, &buff_size, buff2);
@@ -163,8 +164,10 @@ int Acquisition()
     free(buff1);
     free(buff2);
     free(filepath);
+
     rp_Release();
     fprintf(fptr, "\n Memory freed \n");
+    
     fclose(fptr);
     fclose(data);
     return 0;
@@ -175,3 +178,5 @@ int main(int argc, char **argv)
     Acquisition();
     return 0;
 }
+
+

@@ -1,0 +1,14 @@
+Rp api init success! 
+Signals generatedBuffer allocated
+Decimation set
+Acquisition started
+
+ ACQUSITION TRIGGERED 
+
+ Buffer filled 
+
+ Data acquired 
+
+ Data acquired 
+
+ Acquisition time: 0.160894 
